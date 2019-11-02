@@ -11,7 +11,9 @@
 			s = {
 				mapSize: [20, 20],
 				gridSize: [30, 30],
-				gridBorder: 1
+				gridBorder: 1,
+				console: false,
+				drawTest: true
 			},
 			themes = {
 				"Black and White": {
@@ -20,7 +22,8 @@
 					gridColor: "#fff",
 					gridBorder: "#000",
 					snakeColor: "#000",
-					textColor: "#fff"
+					textColor: "#fff",
+					foodColor: "red"
 				}
 			},
 			theme,
@@ -32,6 +35,8 @@
 			lastTime = -1,
 			nextDir = [],
 			dir = [1, 0],
+			map = {},
+			food = [0,0],
 			devc = 0,
 			game = {
 				init: function(){
@@ -40,6 +45,10 @@
 					game.drawMap();
 					game.drawSnake();
 
+					map["1,10"] = map["2,10"] = map["3,10"] = true;
+
+					game.createFood();
+
 					document.body.onkeydown = function(t) {
 						console.log("Keystroke: "+t.keyCode);
 						var curDir;
@@ -47,24 +56,21 @@
 							case 87: //w
 								if (paused) return;
 								curDir = [0,-1];
-								if (nextDir.length==0&&game.dirComp(curDir,dir)==0) nextDir.push(curDir);
-								else if (game.dirComp(curDir,nextDir[nextDir.length-1])==0) nextDir.push(curDir);
+								if (game.dirComp(curDir,nextDir.length==0?dir:nextDir[nextDir.length-1])==0) nextDir.push(curDir);
 								break;
 							case 83: //s
 								if (paused) return;
 								curDir = [0,1];
-								if (nextDir.length==0&&game.dirComp(curDir,dir)==0) nextDir.push(curDir);
-								else if (game.dirComp(curDir,nextDir[nextDir.length-1])==0) nextDir.push(curDir);								break;
+								if (game.dirComp(curDir,nextDir.length==0?dir:nextDir[nextDir.length-1])==0) nextDir.push(curDir);								break;
 							case 65: //a
 								if (paused) return;
 								curDir = [-1,0];
-								if (nextDir.length==0&&game.dirComp(curDir,dir)==0) nextDir.push(curDir);
-								else if (game.dirComp(curDir,nextDir[nextDir.length-1])==0) nextDir.push(curDir);								break;
+								if (game.dirComp(curDir,nextDir.length==0?dir:nextDir[nextDir.length-1])==0) nextDir.push(curDir);								break;
 							case 68: //d
 								if (paused) return;
 								curDir = [1,0];
-								if (nextDir.length==0&&game.dirComp(curDir,dir)==0) nextDir.push(curDir);
-								else if (game.dirComp(curDir,nextDir[nextDir.length-1])==0) nextDir.push(curDir);								break;
+								if (game.dirComp(curDir,nextDir.length==0?dir:nextDir[nextDir.length-1])==0) nextDir.push(curDir);
+								break;
 							case 27: //esc
 								if (paused) game.resume();
 								else game.pause();
@@ -109,6 +115,19 @@
 						c.fillRect(path[i].begin[0],path[i].begin[1],path[i].end[0]-path[i].begin[0],path[i].end[1]-path[i].begin[1])
 					}
 				},
+				drawFood: function(){
+					c.fillStyle = theme.foodColor;
+					c.fillRect(food[0]*s.gridSize[0],food[1]*s.gridSize[1],s.gridSize[0],s.gridSize[1]);
+				},
+				drawTest: function(){
+					for (var i in map) {
+						if (map[i]) {
+							c.strokeStyle = "red";
+							var g = i.split(",");
+							c.strokeRect(g[0]*s.gridSize[0],g[1]*s.gridSize[1],s.gridSize[0],s.gridSize[1]);
+						}
+					}
+				},
 				pause: function(){
 					if (!paused) {
 						paused = true;
@@ -121,11 +140,58 @@
 						anm = requestAnimationFrame(game.update);
 					}
 				},
-				createFood: function(x,y){
-
+				createFood: function(){
+					var a = [Math.floor(Math.random()*s.mapSize[0]),Math.floor(Math.random()*s.mapSize[1])];
+					while (!game.createFoodCore(a[0],a[1])){
+						a = [Math.floor(Math.random()*s.mapSize[0]),Math.floor(Math.random()*s.mapSize[1])];
+					}
+				},
+				createFoodCore: function(x,y){
+					if (map[x+","+y]) return false;
+					food = [x,y];
+					return true;
+				},
+				checkFood: function(){ //check if able to eat food
+					if (map[food[0]+","+food[1]]) return true;
+					else return false;
+				},
+				addLength: function(){
+					var i = path.length-1;
+					if (path[i].d[0]==0){
+						if (path[i].d[1]==1){ //down
+							path[i].begin[1] -= s.gridSize[1];
+							map[Math.floor(path[i].begin[0]/s.gridSize[0])+","+Math.floor(path[i].begin[1]/s.gridSize[1])] = true;
+						}
+						else{ //up
+							path[i].end[1] += s.gridSize[1];
+							map[(Math.floor(path[i].end[0]/s.gridSize[0])-1)+","+Math.floor(path[i].end[1]/s.gridSize[1])] = true;
+						}
+					}
+					else{
+						if (path[i].d[0]==1){ //right
+							path[i].begin[0] -= s.gridSize[1];
+							map[Math.floor(path[i].begin[0]/s.gridSize[0])+","+Math.floor(path[i].begin[1]/s.gridSize[1])] = true;
+						}
+						else{ //left
+							path[i].end[0] += s.gridSize[1];
+							map[Math.floor(path[i].end[0]/s.gridSize[0])+","+(Math.floor(path[i].end[1]/s.gridSize[1])-1)] = true;
+						}
+					}
+				},
+				boundCheck: function(){
+					if (game.boundCheckCore(path[0].begin[0],0)&&game.boundCheckCore(path[0].end[0],0)&&game.boundCheckCore(path[0].begin[1],1)&&game.boundCheckCore(path[0].end[1],1)) return true;
+					else return false;
+				},
+				boundCheckCore: function(val,axis){
+					if (axis==0) return val>=0&&val<(s.gridSize[0]*s.mapSize[0]);
+					else return val>=0&&val<(s.gridSize[1]*s.mapSize[1]);
+				},
+				gameOver: function(){
+					game.pause();
+					alert("Game Over!");
 				},
 				update: function(t){
-					console.log("Run "+devc+" started.")
+					if (s.console) console.log("Run "+devc+" started.")
 					t = parseInt(t);
 					if (lastTime==-1) lastTime = t;
 					var tp = (t - lastTime) / 1000;
@@ -138,85 +204,96 @@
 					
 					if (path[0].d[0]==0){ //up/down
 						if (path[0].d[1]==1){ //down
-							var gridBefore = [Math.floor(path[0].end[0]/s.gridSize[0]),Math.floor(path[0].end[1]/s.gridSize[1])];
-							console.log(JSON.parse(JSON.stringify(path)),gridBefore)
+							var gridBefore = [Math.floor(path[0].end[0]/s.gridSize[0])-1,Math.floor(path[0].end[1]/s.gridSize[1])];
+							if (s.console) console.log(JSON.parse(JSON.stringify(path)),gridBefore)
 							path[0].end[1] += dis;
-							var gridAfter = [Math.floor(path[0].end[0]/s.gridSize[0]),Math.floor(path[0].end[1]/s.gridSize[1])];
+							var gridAfter = [Math.floor(path[0].end[0]/s.gridSize[0])-1,Math.floor(path[0].end[1]/s.gridSize[1])];
 						}
 						else{ //up
 							var gridBefore = [Math.floor(path[0].begin[0]/s.gridSize[0]),Math.floor(path[0].begin[1]/s.gridSize[1])];
-							console.log(JSON.parse(JSON.stringify(path)),gridBefore)
+							if (s.console) console.log(JSON.parse(JSON.stringify(path)),gridBefore)
 							path[0].begin[1] -= dis;
 							var gridAfter = [Math.floor(path[0].begin[0]/s.gridSize[0]),Math.floor(path[0].begin[1]/s.gridSize[1])];
 						}
 					}
 					else{ //left/right
 						if (path[0].d[0]==1){ //right
-							var gridBefore = [Math.floor(path[0].end[0]/s.gridSize[0]),Math.floor(path[0].end[1]/s.gridSize[1])];
-							console.log(JSON.parse(JSON.stringify(path)),gridBefore)
+							var gridBefore = [Math.floor(path[0].end[0]/s.gridSize[0]),Math.floor(path[0].end[1]/s.gridSize[1])-1];
+							if (s.console) console.log(JSON.parse(JSON.stringify(path)),gridBefore)
 							path[0].end[0] += dis;
-							var gridAfter = [Math.floor(path[0].end[0]/s.gridSize[0]),Math.floor(path[0].end[1]/s.gridSize[1])];
+							var gridAfter = [Math.floor(path[0].end[0]/s.gridSize[0]),Math.floor(path[0].end[1]/s.gridSize[1])-1];
 						}
 						else{ //left
 							var gridBefore = [Math.floor(path[0].begin[0]/s.gridSize[0]),Math.floor(path[0].begin[1]/s.gridSize[1])];
-							console.log(JSON.parse(JSON.stringify(path)),gridBefore)
+							if (s.console) console.log(JSON.parse(JSON.stringify(path)),gridBefore)
 							path[0].begin[0] -= dis;
 							var gridAfter = [Math.floor(path[0].begin[0]/s.gridSize[0]),Math.floor(path[0].begin[1]/s.gridSize[1])];
 						}
 					}
-					console.log(JSON.parse(JSON.stringify(path)),gridAfter);
-					if (game.dirComp(gridBefore,gridAfter)==0&&nextDir.length>0){ //grid changes and new direction is assigned
-						disExtra = path[0].d[0]==0?(path[0].d[1]==1?(path[0].end[1]-gridAfter[1]*s.gridSize[1]):(gridBefore[1]*s.gridSize[1]-path[0].begin[1])):(path[0].d[0]==1?(path[0].end[0]-gridAfter[0]*s.gridSize[0]):(gridBefore[0]*s.gridSize[0]-path[0].begin[0]));
-						console.log("disExtra",disExtra);
-						
-						if (path[0].d[0]==0){ //end and start is wrong here, start is top left corner of segment, end is bottom right
-							if (path[0].d[1]==1){ //original down
-								path[0].end[1] -= disExtra;
-								path[0].end[1] -= s.gridSize[1];
-								if (nextDir[0][0]==1){ //new right
-									npath = new Segment(path[0].end[0]-s.gridSize[0],path[0].end[1],path[0].end[0]+disExtra,path[0].end[1]+s.gridSize[1],nextDir[0][0],nextDir[0][1]);
+					if (s.console) console.log(JSON.parse(JSON.stringify(path)),gridAfter);
+					if (game.dirComp(gridBefore,gridAfter)==0){ //grid changes
+						//game map update
+						if (nextDir.length>0) { //new direction is assigned
+							disExtra = path[0].d[0]==0?(path[0].d[1]==1?(path[0].end[1]-gridAfter[1]*s.gridSize[1]):(gridBefore[1]*s.gridSize[1]-path[0].begin[1])):(path[0].d[0]==1?(path[0].end[0]-gridAfter[0]*s.gridSize[0]):(gridBefore[0]*s.gridSize[0]-path[0].begin[0]));
+							if (s.console) console.log("disExtra",disExtra);
+							if (path[0].d[0]==0){ //end and start is wrong here, start is top left corner of segment, end is bottom right
+								if (path[0].d[1]==1){ //original down
+									path[0].end[1] -= disExtra;
+									path[0].end[1] -= s.gridSize[1];
+									if (nextDir[0][0]==1){ //new right
+										npath = new Segment(path[0].end[0]-s.gridSize[0],path[0].end[1],path[0].end[0]+disExtra,path[0].end[1]+s.gridSize[1],nextDir[0][0],nextDir[0][1]);
+										map[Math.floor(npath.end[0]/s.gridSize[0])+","+(Math.floor(npath.end[1]/s.gridSize[1])-1)] = true;
+									}
+									else{ //new left
+										npath = new Segment(path[0].end[0]-s.gridSize[0]-disExtra,path[0].end[1],path[0].end[0],path[0].end[1]+s.gridSize[1],nextDir[0][0],nextDir[0][1]);
+										map[Math.floor(npath.begin[0]/s.gridSize[0])+","+Math.floor(npath.begin[1]/s.gridSize[1])] = true;
+									}
 								}
-								else{ //new left
-									npath = new Segment(path[0].end[0]-s.gridSize[0]-disExtra,path[0].end[1],path[0].end[0],path[0].end[1]+s.gridSize[1],nextDir[0][0],nextDir[0][1]);
+								else{ //original up
+									path[0].begin[1] += disExtra;
+									path[0].begin[1] += s.gridSize[1];
+									if (nextDir[0][0]==1){ //new right
+										npath = new Segment(path[0].begin[0],path[0].begin[1]-s.gridSize[1],path[0].begin[0]+s.gridSize[0]+disExtra,path[0].begin[1],nextDir[0][0],nextDir[0][1]);
+										map[Math.floor(npath.end[0]/s.gridSize[0])+","+(Math.floor(npath.end[1]/s.gridSize[1])-1)] = true;
+									}
+									else{ //new left
+										npath = new Segment(path[0].begin[0]-disExtra,path[0].begin[1]-s.gridSize[1],path[0].begin[0]+s.gridSize[0],path[0].begin[1],nextDir[0][0],nextDir[0][1]);
+										map[Math.floor(npath.begin[0]/s.gridSize[0])+","+Math.floor(npath.begin[1]/s.gridSize[1])] = true;
+									}
 								}
 							}
-							else{ //original up
-								path[0].begin[1] += disExtra;
-								path[0].begin[1] += s.gridSize[1];
-								if (nextDir[0][0]==1){ //new right
-									npath = new Segment(path[0].begin[0],path[0].begin[1]-s.gridSize[1],path[0].begin[0]+s.gridSize[0]+disExtra,path[0].begin[1],nextDir[0][0],nextDir[0][1]);
+							else{
+								if (path[0].d[0]==1){ //original right
+									path[0].end[0] -= disExtra;
+									path[0].end[0] -= s.gridSize[0];
+									if (nextDir[0][1]==1){ //new down
+										npath = new Segment(path[0].end[0],path[0].end[1]-s.gridSize[1],path[0].end[0]+s.gridSize[0],path[0].end[1]+disExtra,nextDir[0][0],nextDir[0][1]);
+										map[(Math.floor(npath.end[0]/s.gridSize[0])-1)+","+Math.floor(npath.end[1]/s.gridSize[1])] = true;
+									}
+									else{ //new up
+										npath = new Segment(path[0].end[0],path[0].end[1]-s.gridSize[1]-disExtra,path[0].end[0]+s.gridSize[0],path[0].end[1],nextDir[0][0],nextDir[0][1]);
+										map[Math.floor(npath.begin[0]/s.gridSize[0])+","+Math.floor(npath.begin[1]/s.gridSize[1])] = true;
+									}
 								}
-								else{ //new left
-									npath = new Segment(path[0].begin[0]-disExtra,path[0].begin[1]-s.gridSize[1],path[0].begin[0]+s.gridSize[0],path[0].begin[1],nextDir[0][0],nextDir[0][1]);
+								else{ //original left
+									path[0].begin[0] += disExtra;
+									path[0].begin[0] += s.gridSize[0];
+									if (nextDir[0][1]==1){ //new down
+										npath = new Segment(path[0].begin[0]-s.gridSize[0],path[0].begin[1],path[0].begin[0],path[0].begin[1]+s.gridSize[1]+disExtra,nextDir[0][0],nextDir[0][1]);
+										map[(Math.floor(npath.end[0]/s.gridSize[0])-1)+","+Math.floor(npath.end[1]/s.gridSize[1])] = true;
+									}
+									else{ //new up
+										npath = new Segment(path[0].begin[0]-s.gridSize[0],path[0].begin[1]-disExtra,path[0].begin[0],path[0].begin[1]+s.gridSize[1],nextDir[0][0],nextDir[0][1]);
+										map[Math.floor(npath.begin[0]/s.gridSize[0])+","+Math.floor(npath.begin[1]/s.gridSize[1])] = true;
+									}
 								}
 							}
+							path.splice(0,0,npath);
+							dir[0] = nextDir[0][0];
+							dir[1] = nextDir[0][1];
+							nextDir.splice(0,1);
 						}
-						else{
-							if (path[0].d[0]==1){ //original right
-								path[0].end[0] -= disExtra;
-								path[0].end[0] -= s.gridSize[0];
-								if (nextDir[0][1]==1){ //new down
-									npath = new Segment(path[0].end[0],path[0].end[1]-s.gridSize[1],path[0].end[0]+s.gridSize[0],path[0].end[1]+disExtra,nextDir[0][0],nextDir[0][1]);
-								}
-								else{ //new up
-									npath = new Segment(path[0].end[0],path[0].end[1]-s.gridSize[1]-disExtra,path[0].end[0]+s.gridSize[0],path[0].end[1],nextDir[0][0],nextDir[0][1]);
-								}
-							}
-							else{ //original left
-								path[0].begin[0] += disExtra;
-								path[0].begin[0] += s.gridSize[0];
-								if (nextDir[0][1]==1){ //new down
-									npath = new Segment(path[0].begin[0]-s.gridSize[0],path[0].begin[1],path[0].begin[0],path[0].begin[1]+s.gridSize[1]+disExtra,nextDir[0][0],nextDir[0][1]);
-								}
-								else{ //new up
-									npath = new Segment(path[0].begin[0]-s.gridSize[0],path[0].begin[1]-disExtra,path[0].begin[0],path[0].begin[1]+s.gridSize[1],nextDir[0][0],nextDir[0][1]);
-								}
-							}
-						}
-						path.splice(0,0,npath);
-						dir[0] = nextDir[0][0];
-						dir[1] = nextDir[0][1];
-						nextDir.splice(0,1);
+						else map[gridAfter[0]+","+gridAfter[1]] = true;
 					}
 					var rem = 0;
 					var i = path.length;
@@ -227,7 +304,8 @@
 								var gs = Math.floor(path[i].begin[1]/s.gridSize[1]);
 								path[i].begin[1] += dis;
 								var ge = Math.floor(path[i].begin[1]/s.gridSize[1]);
-								//if (ge!=gs) grid[Math.floor(path[i].begin[0]/s.gridSize[0])+","+gs] = 0;
+								if (ge!=gs) map[Math.floor(path[i].begin[0]/s.gridSize[0])+","+gs] = false;
+
 								if (path[i].begin[1]>path[i].end[1]){
 									rem++;
 									dis = path[i].begin[1]-path[i].end[1];
@@ -238,7 +316,8 @@
 								var gs = Math.floor(path[i].end[1]/s.gridSize[1]);
 								path[i].end[1] -= dis;
 								var ge = Math.floor(path[i].end[1]/s.gridSize[1]);
-								//if (ge!=gs) grid[Math.floor(path[i].end[0]/s.gridSize[0])+","+gs] = 0;
+								if (ge!=gs) map[(Math.floor(path[i].end[0]/s.gridSize[0])-1)+","+gs] = false;
+
 								if (path[i].end[1]<path[i].begin[1]){
 									rem++;
 									dis = path[i].begin[1]-path[i].end[1];
@@ -248,7 +327,10 @@
 						}
 						else{
 							if (path[i].d[0]==1){ //right
+								var gs = Math.floor(path[i].begin[0]/s.gridSize[0]);
 								path[i].begin[0] += dis;
+								var ge = Math.floor(path[i].begin[0]/s.gridSize[0]);
+								if (ge!=gs) map[gs+","+Math.floor(path[i].begin[1]/s.gridSize[1])] = false;
 								if (path[i].begin[0]>path[i].end[0]){
 									rem++;
 									dis = path[i].begin[0]-path[i].end[0];
@@ -256,7 +338,11 @@
 								else dis = 0;
 							}
 							else{ //left
+								var gs = Math.floor(path[i].end[0]/s.gridSize[0]);
 								path[i].end[0] -= dis;
+								var ge = Math.floor(path[i].end[0]/s.gridSize[0]);
+								if (ge!=gs) map[gs+","+(Math.floor(path[i].end[1]/s.gridSize[1])-1)] = false;
+
 								if (path[i].end[0]<path[i].begin[0]){
 									rem++;
 									dis = path[i].begin[0]-path[i].end[0];
@@ -269,14 +355,20 @@
 						path.pop();
 						rem--;
 					}
-					console.log(JSON.parse(JSON.stringify(path)));
+					if (s.console) console.log(JSON.parse(JSON.stringify(path)));
+					if (!game.boundCheck()){
+						game.gameOver();
+					}
 					game.drawSnake();
+					if (game.checkFood()) {
+						//food eaten
+						game.addLength();
+						game.createFood();
+					}
+					else game.drawFood();
 					lastTime = t;
-					if (++devc==25){
-					}
-					if (devc==50){
-						//game.pause();
-					}
+					
+					if (s.drawTest) game.drawTest();
 					if (!paused) anm = requestAnimationFrame(game.update);
 				}
 			};
@@ -381,7 +473,7 @@
 			<p id="subtitle" class="text">by <a href="http://legendword.com/" class="intext-link" target="_blank">Legendword</a></p>
 			<p id="time-outer" class="text stat d-flex justify-content-between"><span class="stat-label">Time</span><span id="time">--</span></p>
 			<p id="length-outer" class="text stat d-flex justify-content-between"><span class="stat-label">Length</span><span id="length">--</span></p>
-			<p id="footer" class="text">v1.0.191029</p>
+			<p id="footer" class="text">v1.0.191101</p>
 		</div>
 		<div id="start-btn" class="game-btn btn-primary">Start</div>
 		<div id="cover"></div>
