@@ -6,14 +6,14 @@
     <link rel="stylesheet" href="bootstrap.v4.min.css">
     <script src="jquery-1.11.3.js"></script>
 	<script>
-		var version = "1.0",
+		var version = "1.0.191110",
 			c,
 			s = {
 				mapSize: [20, 20],
-				gridSize: [30, 30],
+				gridSize: [30, 30], //grids should be squares for the code to work
 				gridBorder: 1,
 				console: false,
-				drawTest: true
+				drawTest: false
 			},
 			themes = {
 				"Black and White": {
@@ -37,9 +37,12 @@
 			dir = [1, 0],
 			map = {},
 			food = [0,0],
+			lengthGained = 0,
+			snakeLength = 3,
 			devc = 0,
 			game = {
 				init: function(){
+					$("#footer").html("v"+version);
 					$("#game-outer").css("background", theme.background);
 					$(".text").css("color", theme.textColor);
 					game.drawMap();
@@ -50,7 +53,7 @@
 					game.createFood();
 
 					document.body.onkeydown = function(t) {
-						console.log("Keystroke: "+t.keyCode);
+						if (s.console) console.log("Keystroke: "+t.keyCode);
 						var curDir;
 						switch (t.keyCode) {
 							case 87: //w
@@ -156,6 +159,10 @@
 					else return false;
 				},
 				addLength: function(){
+					lengthGained += s.gridSize[0];
+					$("#length").html(++snakeLength);
+					//the method below works, but creates a sudden visual movement that is unpleasant to see
+					/*
 					var i = path.length-1;
 					if (path[i].d[0]==0){
 						if (path[i].d[1]==1){ //down
@@ -177,14 +184,15 @@
 							map[Math.floor(path[i].end[0]/s.gridSize[0])+","+(Math.floor(path[i].end[1]/s.gridSize[1])-1)] = true;
 						}
 					}
+					*/
 				},
 				boundCheck: function(){
 					if (game.boundCheckCore(path[0].begin[0],0)&&game.boundCheckCore(path[0].end[0],0)&&game.boundCheckCore(path[0].begin[1],1)&&game.boundCheckCore(path[0].end[1],1)) return true;
 					else return false;
 				},
 				boundCheckCore: function(val,axis){
-					if (axis==0) return val>=0&&val<(s.gridSize[0]*s.mapSize[0]);
-					else return val>=0&&val<(s.gridSize[1]*s.mapSize[1]);
+					if (axis==0) return val>=0&&val<=(s.gridSize[0]*s.mapSize[0]);
+					else return val>=0&&val<=(s.gridSize[1]*s.mapSize[1]);
 				},
 				gameOver: function(){
 					game.pause();
@@ -194,6 +202,7 @@
 					if (s.console) console.log("Run "+devc+" started.")
 					t = parseInt(t);
 					if (lastTime==-1) lastTime = t;
+					$("#time").html(parseInt(t/1000));
 					var tp = (t - lastTime) / 1000;
 					game.drawMap();
 
@@ -201,6 +210,7 @@
 					var dis = speed * tp;
 					var disExtra = 0;
 					var npath = null;
+					var newGrid = null;
 					
 					if (path[0].d[0]==0){ //up/down
 						if (path[0].d[1]==1){ //down
@@ -236,17 +246,17 @@
 						if (nextDir.length>0) { //new direction is assigned
 							disExtra = path[0].d[0]==0?(path[0].d[1]==1?(path[0].end[1]-gridAfter[1]*s.gridSize[1]):(gridBefore[1]*s.gridSize[1]-path[0].begin[1])):(path[0].d[0]==1?(path[0].end[0]-gridAfter[0]*s.gridSize[0]):(gridBefore[0]*s.gridSize[0]-path[0].begin[0]));
 							if (s.console) console.log("disExtra",disExtra);
-							if (path[0].d[0]==0){ //end and start is wrong here, start is top left corner of segment, end is bottom right
+							if (path[0].d[0]==0){
 								if (path[0].d[1]==1){ //original down
 									path[0].end[1] -= disExtra;
 									path[0].end[1] -= s.gridSize[1];
 									if (nextDir[0][0]==1){ //new right
 										npath = new Segment(path[0].end[0]-s.gridSize[0],path[0].end[1],path[0].end[0]+disExtra,path[0].end[1]+s.gridSize[1],nextDir[0][0],nextDir[0][1]);
-										map[Math.floor(npath.end[0]/s.gridSize[0])+","+(Math.floor(npath.end[1]/s.gridSize[1])-1)] = true;
+										newGrid = Math.floor(npath.end[0]/s.gridSize[0])+","+(Math.floor(npath.end[1]/s.gridSize[1])-1);
 									}
 									else{ //new left
 										npath = new Segment(path[0].end[0]-s.gridSize[0]-disExtra,path[0].end[1],path[0].end[0],path[0].end[1]+s.gridSize[1],nextDir[0][0],nextDir[0][1]);
-										map[Math.floor(npath.begin[0]/s.gridSize[0])+","+Math.floor(npath.begin[1]/s.gridSize[1])] = true;
+										newGrid = Math.floor(npath.begin[0]/s.gridSize[0])+","+Math.floor(npath.begin[1]/s.gridSize[1]);
 									}
 								}
 								else{ //original up
@@ -254,11 +264,11 @@
 									path[0].begin[1] += s.gridSize[1];
 									if (nextDir[0][0]==1){ //new right
 										npath = new Segment(path[0].begin[0],path[0].begin[1]-s.gridSize[1],path[0].begin[0]+s.gridSize[0]+disExtra,path[0].begin[1],nextDir[0][0],nextDir[0][1]);
-										map[Math.floor(npath.end[0]/s.gridSize[0])+","+(Math.floor(npath.end[1]/s.gridSize[1])-1)] = true;
+										newGrid = Math.floor(npath.end[0]/s.gridSize[0])+","+(Math.floor(npath.end[1]/s.gridSize[1])-1);
 									}
 									else{ //new left
 										npath = new Segment(path[0].begin[0]-disExtra,path[0].begin[1]-s.gridSize[1],path[0].begin[0]+s.gridSize[0],path[0].begin[1],nextDir[0][0],nextDir[0][1]);
-										map[Math.floor(npath.begin[0]/s.gridSize[0])+","+Math.floor(npath.begin[1]/s.gridSize[1])] = true;
+										newGrid = Math.floor(npath.begin[0]/s.gridSize[0])+","+Math.floor(npath.begin[1]/s.gridSize[1]);
 									}
 								}
 							}
@@ -268,11 +278,11 @@
 									path[0].end[0] -= s.gridSize[0];
 									if (nextDir[0][1]==1){ //new down
 										npath = new Segment(path[0].end[0],path[0].end[1]-s.gridSize[1],path[0].end[0]+s.gridSize[0],path[0].end[1]+disExtra,nextDir[0][0],nextDir[0][1]);
-										map[(Math.floor(npath.end[0]/s.gridSize[0])-1)+","+Math.floor(npath.end[1]/s.gridSize[1])] = true;
+										newGrid = (Math.floor(npath.end[0]/s.gridSize[0])-1)+","+Math.floor(npath.end[1]/s.gridSize[1]);
 									}
 									else{ //new up
 										npath = new Segment(path[0].end[0],path[0].end[1]-s.gridSize[1]-disExtra,path[0].end[0]+s.gridSize[0],path[0].end[1],nextDir[0][0],nextDir[0][1]);
-										map[Math.floor(npath.begin[0]/s.gridSize[0])+","+Math.floor(npath.begin[1]/s.gridSize[1])] = true;
+										newGrid = Math.floor(npath.begin[0]/s.gridSize[0])+","+Math.floor(npath.begin[1]/s.gridSize[1]);
 									}
 								}
 								else{ //original left
@@ -280,11 +290,11 @@
 									path[0].begin[0] += s.gridSize[0];
 									if (nextDir[0][1]==1){ //new down
 										npath = new Segment(path[0].begin[0]-s.gridSize[0],path[0].begin[1],path[0].begin[0],path[0].begin[1]+s.gridSize[1]+disExtra,nextDir[0][0],nextDir[0][1]);
-										map[(Math.floor(npath.end[0]/s.gridSize[0])-1)+","+Math.floor(npath.end[1]/s.gridSize[1])] = true;
+										newGrid = (Math.floor(npath.end[0]/s.gridSize[0])-1)+","+Math.floor(npath.end[1]/s.gridSize[1]);
 									}
 									else{ //new up
 										npath = new Segment(path[0].begin[0]-s.gridSize[0],path[0].begin[1]-disExtra,path[0].begin[0],path[0].begin[1]+s.gridSize[1],nextDir[0][0],nextDir[0][1]);
-										map[Math.floor(npath.begin[0]/s.gridSize[0])+","+Math.floor(npath.begin[1]/s.gridSize[1])] = true;
+										newGrid = Math.floor(npath.begin[0]/s.gridSize[0])+","+Math.floor(npath.begin[1]/s.gridSize[1]);
 									}
 								}
 							}
@@ -293,10 +303,25 @@
 							dir[1] = nextDir[0][1];
 							nextDir.splice(0,1);
 						}
-						else map[gridAfter[0]+","+gridAfter[1]] = true;
+						else {
+							newGrid = gridAfter[0]+","+gridAfter[1];
+						}
+						//map[newGrid] = true;
 					}
+
+					//remove dis from tail of snake
 					var rem = 0;
 					var i = path.length;
+					if (lengthGained>0) {
+						if (dis<=lengthGained) {
+							lengthGained -= dis;
+							dis = 0;
+						}
+						else {
+							dis -= lengthGained;
+							lengthGained = 0;
+						}
+					}
 					while (dis>0) {
 						i--;
 						if (path[i].d[0]==0){
@@ -354,6 +379,12 @@
 					while (rem>0){
 						path.pop();
 						rem--;
+					}
+					if (newGrid) {
+						if (map[newGrid]==true) { //check snake body slam
+							game.gameOver();
+						}
+						map[newGrid] = true;
 					}
 					if (s.console) console.log(JSON.parse(JSON.stringify(path)));
 					if (!game.boundCheck()){
@@ -444,6 +475,7 @@
 		#title {
 			text-align: center;
 			margin-top: 20px;
+			font-size: 1.7rem;
 		}
 		#subtitle {
 			opacity: 0.6;
@@ -471,9 +503,9 @@
 		<div id="sidebar">
 			<h3 id="title" class="text">Snake Game</h3>
 			<p id="subtitle" class="text">by <a href="http://legendword.com/" class="intext-link" target="_blank">Legendword</a></p>
-			<p id="time-outer" class="text stat d-flex justify-content-between"><span class="stat-label">Time</span><span id="time">--</span></p>
-			<p id="length-outer" class="text stat d-flex justify-content-between"><span class="stat-label">Length</span><span id="length">--</span></p>
-			<p id="footer" class="text">v1.0.191101</p>
+			<p id="time-outer" class="text stat d-flex justify-content-between"><span class="stat-label">Time</span><span id="time">0</span></p>
+			<p id="length-outer" class="text stat d-flex justify-content-between"><span class="stat-label">Length</span><span id="length">3</span></p>
+			<p id="footer" class="text"></p>
 		</div>
 		<div id="start-btn" class="game-btn btn-primary">Start</div>
 		<div id="cover"></div>
